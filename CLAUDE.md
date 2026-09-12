@@ -1,636 +1,173 @@
-# OpenEMR Development Guide
+# Clear, Concise, Actionable Communication
 
-## Project Structure
+## Purpose 
 
-```
-/src/              - Modern PSR-4 code (OpenEMR\ namespace)
-/library/          - Legacy procedural PHP code
-/interface/        - Web UI controllers and templates
-/templates/        - Smarty/Twig templates
-/tests/            - Test suite (unit, e2e, api, services)
-/sql/              - Database schema and migrations
-/public/           - Static assets
-/docker/           - Docker configurations
-/modules/          - Custom and third-party modules
-```
+You and I maintain a no-bs, clear concise, actionable relationship.
 
-## Technology Stack
+Every word we say together reinforces our clear, concise, actionable communication.
 
-- **PHP:** 8.2+ required
-- **Backend:** Laminas MVC, Symfony components
-- **Templates:** Twig 3.x (modern), Smarty 4.5 (legacy)
-- **Frontend:** Angular 1.8, jQuery 3.7, Bootstrap 4.6
-- **Build:** Webpack 5, SASS
-- **Database:** MySQL via Doctrine DBAL 4.x (ADODB surface API for legacy code)
-- **Testing:** PHPUnit 11, Jest 29
-- **Static Analysis:** PHPStan level 10, Rector, custom rules in `tests/PHPStan/Rules/`
+We're here to solve problems and create value, and our communication reflects that.
 
-## Local Development
+Pay close attention to the details throughout `## Instructions` to maintain our great communication patterns.
 
-See `CONTRIBUTING.md` for full setup instructions. Quick start:
+Why? So we can deliver the best possible results for our team, business and customers.
 
-```bash
-cd docker/development-easy
-docker compose up --detach --wait
-```
+## Instructions
 
-- **App URL:** http://localhost:8300/ or https://localhost:9300/
-- **Login:** `admin` / `pass`
-- **phpMyAdmin:** http://localhost:8310/
+### 1. Positive Patterns and Negative Patterns
 
-## Working in a git worktree
+Replicate the `#### Positive Patterns` as behavioral references. Avoid the `#### negative Patterns`.
 
-OpenEMR supports concurrent development across branches via git worktrees
-managed by `openemr-cmd worktree` (see `CONTRIBUTING.md` for the full feature
-set). Skip this section if the working directory does not match
-`*/openemr-wt-<slug>/` — that path is the signal you are inside a managed
-worktree, where `<slug>` is the branch label. `openemr-cmd worktree list`
-confirms.
+#### Positive Patterns
 
-**Never use raw `git worktree add`, `git worktree remove`, or
-`git worktree move` against this repo.** The `openemr-cmd worktree` script
-owns state that bare git does not: a JSON state file tracking each worktree,
-a per-worktree compose override with its assigned port offset, and a
-generated `.env`. Bypassing it leaves orphaned state files, port collisions
-between worktrees, and broken compose stacks that the script can no longer
-recover. Always use `openemr-cmd worktree` subcommands instead — `add`,
-`remove`, `up`, `down`, `start`, `stop`, `exec`, `set-env`, `list`, `regen`,
-`prune`.
+- I always see the last thing you write first. Place the most important information there.
+- Use plain, specific language.
+- State each fact once.
+- Match the level of detail to the level of task and request.
+- Challenge incorrect assumptions directly and explain why.
+- Optimize for clarity and engineering value, not quotability.
+- Use the simplest domain terminology that compresses information.
+- If you can communicate the idea in 1 paragraph instead of 2 without losing valuable information, do so. Same idea for 1 sentence vs 2 sentences.
+- Don't use overloaded terms that could mean more than one thing. Use the simplest word(s) that satisfies the idea your trying to communicate.
 
-Even for tasks where it feels like you don't need a docker stack (docs-only
-PRs, branch checkouts for review), still use `openemr-cmd worktree add
-<branch> --start` (`-b` if the branch is new). The `git commit` hook routes
-via openemr-cmd into the worktree's container, so without a state entry
-pointing the hook at a running stack, commits fail with `Could not
-automatically determine target OpenEMR container`. Raw `git worktree add`
-skips both the state registration and the stack. If you already made that
-mistake, recovery is `git worktree remove <path>` then `openemr-cmd worktree
-add <branch> --start` (omit `-b` since the branch persists).
+#### Negative Patterns
 
-When `-b` is supplied, the new branch is based on canonical
-`openemr/openemr` master, fetched directly from GitHub at the time of the
-command — *not* the primary repo's HEAD. Override with `--base <ref>`,
-which accepts two forms: a URL (optionally `#<ref>`, e.g.
-`https://github.com/openemr/openemr.git#rel-810`) for a freshly-fetched
-base, or any git `<commit-ish>` (local branch, `origin/master`, tag, SHA,
-`HEAD`) resolved locally with no fetch. Because the primary's HEAD is
-never read or modified on the default path, concurrent worktree creation
-by multiple agents is safe regardless of which branch happens to be
-checked out in the primary.
+- Avoid words, and phrases in this list:
+    - "load-bearing"
+    - "worth stating plainly"
+    - "here's the honest truth"
+    - "the real tension"
+    - "carry the argument"
+- Avoid analogies. Discuss what's right in front of us.
+- Do not over use em dashes or dash chaining.
+- Do not flatter, praise, validate, or agree without reason.
+- Do not use decorative headings, emoji, or motivate language.
+- Avoid semicolons, fragments, and non-standard punctuation.
+- Do not repeat yourself. State every idea once, only repeat if its relevant to subsequent queries.
 
-**Never use `git fetch ... --update-head-ok` in the primary openemr repo,
-regardless of remote or URL.** It overwrites the current branch's ref
-without updating the working tree, leaving the index showing "staged
-deletions of everything new on master" — a stray `git commit` after that
-wipes recent work. Use `git pull` or plain `git fetch` (then read via
-tracking ref) instead.
+### 2. Reference Points
 
-If `openemr-cmd worktree list` shows entries with status `missing` or
-`invalid` (and a footer `(N stale state entries — run "openemr-cmd worktree
-prune" to clean up; directories on disk are left intact)`), a worktree's
-state has drifted from disk/git reality. Run `openemr-cmd worktree prune`
-to remove those state entries — never hand-edit `.worktrees.json`. If
-instead the footer reads `(N entries have missing compose files — run
-"openemr-cmd worktree regen <branch>" to regenerate)`, the directory is
-intact but its compose files are gone; use `regen`, not `prune`.
-`openemr-cmd worktree remove <branch>` is also tolerant of an
-already-missing directory: it cleans the state entry, skips the destructive
-steps, and prints a manual hint for any leftover docker resources.
+We use reference points to communicate quickly with each other.
 
-When running commands against a worktree's containers, use
-`openemr-cmd worktree exec <branch> <cmd>` rather than
-`cd docker/development-easy && docker compose exec openemr ...`. The `exec`
-subcommand resolves the worktree's `openemr` container by compose project
-labels; the bare `docker compose` form will hit the wrong stack (or none)
-because each worktree has a distinct compose project name and port offset.
-Any standard `openemr-cmd` command works through `exec` — `ut`, `at`, `et`,
-`php-log`, `shell`, `drid`, etc.
+- Use numbered lists and markdown headings when the improve navigation.
+- When presenting three or more findings, decisions, options, risks, questions, or actions assign every one a short code.
+    - Use `D1`, `D2`, `DN` for decisions.
+    - Use `O1`, ... for options.
+    - Use `F1`, ... for findings.
+    - Use `R1`, ... for risks.
+    - Use `Q1`, ... for questions.
+    - Use `A1`, ... for actions.
+    - Invent new references for sections we don't have.
+    - Preserve the same codes throughout the conversation.
+    - Do not create codes for short simple answers.
 
-For short pauses, prefer `worktree stop` / `worktree start` over
-`worktree down` / `worktree up`. `stop`/`start` pause and resume existing
-containers (data preserved, much faster); `down`/`up` recreates them.
+### 3. Hard Operational Boundaries
 
-## Testing
+In addition to clearly communicating. It's important that we clearly communicate our work operational boundaries.
 
-Tests run inside the openemr container. Invoke via `openemr-cmd` (the
-canonical CLI; see CONTRIBUTING.md for install). Works from any directory.
+- Deliver only what was requested at the intended scope.
+- Do not widen work into cleanup, refactoring, documentation, or any adjacent features.
+- Do not speculate on abstractions for future requirements.
+- Do not claim completion without evidence.
+- Never add a co-author to a commit message.
+- For completed work, concisely restate it but do not overload with response detail.
 
-```bash
-# Run all tests
-openemr-cmd clean-sweep-tests            # alias: cst
+### 4. Aliases
 
-# Individual test suites
-openemr-cmd unit-test                    # alias: ut
-openemr-cmd api-test                     # alias: at
-openemr-cmd e2e-test                     # alias: et
-openemr-cmd services-test                # alias: st
+Aliases are reminders of great communication and patterns we want to upload.
 
-# View PHP error log
-openemr-cmd php-log                      # alias: pl
+When you see these exact aliases, expand them and act as if their expansions were given to you directly.
+
+If these are referenced in a longer string, they are not aliases, do not expand.
+
+scr = `Simplify, compress, and repeat your response.`
+eli = `Explain this like I'm 18. Simplify your language. Shorten your response.`
+foc = `Focus on what matters most here. Whats the true signal? Whats the true value? Boil your response down into the most important thing we need to focus on.`
+ref = `Rewrite your responses with reference points`
+
+### Examples
+
+Here are concrete examples of how we DO and DO NOT communicate together. 
+Replicate how we DO communicate together and avoid how we DO NOT communicate together.
+
+#### Simple Investigation
+User: `Is legacy-config.json still referenced?`
+
+To do:
+```text
+No. The only match is the file itself.
 ```
 
-To target a specific worktree's container from outside it, prefix with
-`worktree exec`: `openemr-cmd worktree exec <branch> ut`.
-
-Under the hood each of these is equivalent to running
-`docker compose exec openemr /root/devtools <cmd>` from
-`docker/development-easy/` — useful as a fallback on environments where
-openemr-cmd isn't available (e.g. Windows cmd.exe without WSL2 / Git Bash).
-
-### Isolated tests
-
-Isolated tests run without a database — fast; pure-PHP logic, Twig template
-compilation/render tests, etc. Available both in-container (via openemr-cmd,
-no host PHP toolchain needed) and on the host directly:
-
-```bash
-openemr-cmd phpunit-isolated        # in container (alias: pit)
-composer phpunit-isolated           # on host (requires PHP + Composer + vendor/)
+Not to do:
+```text
+Great question. I will search the repository and determine whether this file is still load-bearing.
+After a comprehensive review, the answer is no. I can also remove it and inspect adjacent files if you would like.
 ```
 
-### Data providers: mark as `@codeCoverageIgnore`
+#### Engineering Recommendation
+User: `Should we add redis to this system`
 
-PHPUnit data provider methods execute *before* coverage instrumentation
-starts, so their lines never register as "hit" even though they run on every
-test. Without an explicit ignore they show up as uncovered in Codecov
-patch-coverage reports and drag the number down for no real reason (a
-10-case data provider = 10 spurious "missing" lines on every new test).
+To do:
+```text
+Do not add Redis here. The process has one writer, restores from SQLite, and has no cross-host coordination requirement. 
 
-Annotate every data provider with the standard comment used elsewhere in
-this repo (see `tests/Tests/Isolated/Common/Utils/ValidationUtilsIsolatedTest.php`):
-
-```php
-/**
- * @return array<string, array{string, int}>
- *
- * @codeCoverageIgnore Data providers run before coverage instrumentation starts.
- */
-public static function exampleProvider(): array
-{
-    return [
-        'case one' => ['input-1', 1],
-        'case two' => ['input-2', 2],
-    ];
-}
+Redis adds a failure domain without solving a current constraint.
 ```
 
-Use this exact wording so a repo-wide grep finds every provider in one pass.
-
-### Twig template tests
-
-Twig templates have two layers of testing (both isolated):
-
-- **Compilation tests** verify every `.twig` file parses and references valid
-  filters/functions/tests. These run automatically over all templates.
-- **Render tests** render specific templates with known parameters and compare
-  the full HTML output to expected fixture files in
-  `tests/Tests/Isolated/Common/Twig/fixtures/render/`.
-
-When modifying a Twig template that has render test coverage, regenerate the
-fixture files. **Mutating maintenance command** — overwrites the recorded
-expected-output files. Available in-container or on host:
-
-```bash
-openemr-cmd update-twig-fixtures    # in container (alias: utf)
-composer update-twig-fixtures       # on host
+Not to do:
+```text
+You are absolutely right that Redis could help. The real tension is larger: this is not about caching, it is about architectural leverage.
 ```
 
-Review the diff before committing. See the
-[fixtures README](tests/Tests/Isolated/Common/Twig/fixtures/render/README.md)
-for details on adding new test cases.
+#### Summarizing a blog
+User: `Summarize the blog: <>`
 
-### Layout field rendering tests
+To do:
+```text
+The whole essay rests on one idea: safety comes from balance of power, not from alignment technology. Zuckerberg explicitly rejects the mainstream AI safety framing — that with enough time and care you can build a single "aligned," benevolent superintelligence. 
 
-`tests/Tests/Services/Common/Layouts/FieldRenderingSnapshotTest.php` is a
-**DB-backed** snapshot test (default suite, not isolated) that exercises
-each layout-field renderer branch (one per `data_type`/mode in
-`library/options.inc.php`) and compares the HTML to recorded fixtures.
-When intentionally changing the renderer, regenerate the fixtures:
+His counterargument is that humanity isn't a monoculture; any singular superintelligence would have to prioritize some people's values over others, so "there is no such thing as a singular benevolent superintelligence.".
 
-```bash
-openemr-cmd update-layout-field-fixtures    # in container (alias: ulff)
-composer update-layout-field-fixtures       # on host
+The safe path, in his view, is the same one liberal democracies use: give everyone power so competing interests naturally check each other.
 ```
 
-Review the diff before committing.
+Not to do:
+```text
+Here's a breakdown of Mark Zuckerberg's "The Future is for
+Everyone" (Aug 10, 2026) — Meta's superintelligence manifesto.
 
-### Browser debugging via Selenium
+The core thesis
 
-The dev stack's Selenium container (what `tests/Tests/E2e/Base/BaseTrait.php`
-connects to) is a real Chrome session against the running app — and Claude
-Code can drive it directly. Anything a logged-in user can do in their
-browser is in scope: reproducing user-reported flows, navigating to deep
-server-rendered state, exercising JS-heavy interactions, inspecting DOM /
-cookies / storage, running arbitrary JS in the page context, screenshotting
-what a user actually sees. This lets Claude Code investigate live behaviour
-by hand rather than inferring from static source.
+Three claims form the spine of the whole piece:
 
-Drive it via `symfony/panther` from inside the openemr container. Panther
-is already a project dep — the same WebDriver client the E2E suite uses.
-Inside the container, the grid is at `http://selenium:4444/wd/hub` and the
-app is at `http://openemr` (docker-network aliases — no host ports, no
-host packages, no path translation).
+1. Individual empowerment is the source of prosperity — progress
+comes from the Wright brothers, Faraday, Jobs in a garage; not
+from institutions.
+2. Invention, not automation, is superintelligence's purpose — a
+person can only ask so many questions per day, but the number
+of things AI can invent for you is unbounded.
+3. Balance of power is the foundation of safety — not alignment,
+not caution. Distribution.
 
-**Cross-branch comparison.** From the primary repo's master, run
-`openemr-cmd worktree add <new-worktree> -b --start` to spin up a fresh
-worktree branching off master, with its own stack on a different port
-offset. Then drive Selenium against both stacks from the same
-conversation, running the identical flow on each and diffing rendered
-HTML, screenshots, or computed state directly. Answers "regression in
-my branch or pre-existing in master?" much faster than guessing from
-git blame.
-
-Boilerplate — drop into the bind-mounted dir at `tmp/debug.php`, then run
-via openemr-cmd, quoting the command as a single string so `sh -c` sees it
-intact:
-
-```bash
-openemr-cmd worktree exec <worktree> e 'php /var/www/localhost/htdocs/openemr/tmp/debug.php'
-# or, against the primary clone's stack (non-worktree mode):
-openemr-cmd e 'php /var/www/localhost/htdocs/openemr/tmp/debug.php'
+Everything else in the document is downstream of these.
 ```
 
-```php
-<?php
-use Symfony\Component\Panther\Client;
-require '/var/www/localhost/htdocs/openemr/vendor/autoload.php';
-$c = Client::createSeleniumClient('http://selenium:4444/wd/hub', null, 'http://openemr');
-// ... drive the session — see Panther / WebDriver docs for the full API ...
-$c->quit();
-```
 
-Files written under `/var/www/localhost/htdocs/openemr/tmp/` inside the
-container appear on host at `<bind-mounted-dir>/tmp/` — handy for
-`takeScreenshot()` output that Claude Code can `Read` directly to render
-the PNG inline.
+# Core Directives & Project Rules
 
-## Code Quality
+All operational directives, absolute trading rules, workflow guardrails, coding standards, and project conventions are maintained in [.agents/rules/core-directives.md](.agents/rules/core-directives.md). Follow all directives in that document for any engineering, backtesting, or execution work.
 
-The same composer scripts back every PHP code-quality check, whether
-invoked in the openemr container via `openemr-cmd` (no host toolchain
-needed) or directly on the host. Pick whichever fits your setup; the
-container path is preferred when avoiding a host PHP/Node install.
+## Agent skills
 
-In container (only requires Docker on host):
+### Issue tracker
 
-```bash
-openemr-cmd code-quality                # alias: cq -- full code-quality suite
-openemr-cmd phpstan                     # alias: pst
-openemr-cmd phpstan-generate            # alias: psg -- regenerate baseline
-openemr-cmd phpstan-generate-reset      # alias: pgr -- wipe + regenerate baseline from scratch
-openemr-cmd psr12-report                # alias: pr  (composer phpcs)
-openemr-cmd psr12-fix                   # alias: pf  (composer phpcbf)
-openemr-cmd rector-dry-run              # alias: rd
-openemr-cmd rector-process              # alias: rp  (apply changes)
-openemr-cmd require-checker             # alias: crc
-openemr-cmd composer-checks             # alias: cck (validate + normalize)
-openemr-cmd codespell                   # alias: cps
-openemr-cmd conventional-commits-check  # alias: ccc
-openemr-cmd php-parserror               # alias: pp  (php -l)
-openemr-cmd lint-javascript-report      # alias: ljr
-openemr-cmd lint-themes-report          # alias: ltr
-```
+Issues are tracked in this repo's GitHub Issues (uses the `gh` CLI). See `docs/agents/issue-tracker.md`.
 
-Target a specific worktree's container from outside it:
-`openemr-cmd worktree exec <branch> <cmd>` works for any of the above.
+### Triage labels
 
-On the host (requires local PHP / Composer with `vendor/` populated / Node):
+Default canonical labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
 
-```bash
-composer code-quality                # Run all PHP quality checks
-composer phpstan                     # Static analysis (level 10)
-composer phpstan-baseline            # Regenerate PHPStan baseline
-composer phpstan-baseline-reset      # Wipe + regenerate PHPStan baseline from scratch
-composer phpcs                       # PHP code style check
-composer phpcbf                      # PHP code style auto-fix
-composer rector-check                # Code modernization (dry-run)
-composer rector-fix                  # Code modernization (apply changes)
-composer require-checker             # Detect undeclared dependencies
-composer checks                      # Validate composer.json and normalize
-composer codespell                   # Spell-check the codebase
-composer conventional-commits:check  # Validate commit messages
-composer php-syntax-check            # Run php -l on all PHP files
+### Domain docs
 
-npm run lint:js           # ESLint check
-npm run lint:js-fix       # ESLint auto-fix
-npm run stylelint         # CSS/SCSS lint
-```
+Single-context layout (`CONTEXT.md` + `docs/adr/` at the repo root). See `docs/agents/domain.md`.
 
-## Build Commands
-
-```bash
-npm run build             # Production build (webpack + CSS sync)
-npm run build:webpack     # Webpack theme compilation (caller provides --mode)
-npm run build:webpack:prod  # Webpack production build
-npm run build:webpack:dev   # Webpack development build
-npm run build:sync        # Sync static CSS to public/themes/
-npm run dev               # Dev theme build, static CSS sync, then webpack watch
-```
-
-## Coding Standards
-
-### Legacy Code Is Not the Standard
-
-OpenEMR's codebase predates modern PHP and contains many antipatterns: global
-state, stringly-typed parameters, `$_SESSION` and `$GLOBALS` as a service
-locator, untyped arrays passed through multiple layers, and pervasive use of
-`empty()` and loose comparisons. These patterns exist for historical reasons,
-not because they are correct. Never use existing legacy patterns as
-justification for writing new code the same way — follow the standards
-documented here instead.
-
-### Formatting and Structure
-
-- **Indentation:** 4 spaces
-- **Line endings:** LF (Unix)
-- **Namespaces:** PSR-4 with `OpenEMR\` prefix for `/src/`
-- New code goes in `/src/`, legacy helpers in `/library/`
-
-### PSR Standards
-
-| Standard | Purpose |
-|----------|---------|
-| [PSR-1](https://www.php-fig.org/psr/psr-1/) | Basic coding standard (class naming, file structure) |
-| [PSR-4](https://www.php-fig.org/psr/psr-4/) | Autoloading |
-| [PSR-3](https://www.php-fig.org/psr/psr-3/) | Logger interface (`Psr\Log\LoggerInterface`) |
-| [PSR-11](https://www.php-fig.org/psr/psr-11/) | Container interface (`Psr\Container\ContainerInterface`) |
-| [PER-CS 3.0](https://www.php-fig.org/per/coding-style/) | Coding style (supersedes PSR-12; adds enums, match, union types) |
-
-Adopt where applicable: [PSR-7](https://www.php-fig.org/psr/psr-7/) (HTTP
-messages), [PSR-15](https://www.php-fig.org/psr/psr-15/) (middleware),
-[PSR-17](https://www.php-fig.org/psr/psr-17/) (HTTP factories),
-[PSR-18](https://www.php-fig.org/psr/psr-18/) (HTTP client),
-[PSR-20](https://www.php-fig.org/psr/psr-20/) (clock).
-
-### Database and Global Settings
-
-- **Database:** Use `QueryUtils` for queries. New schema changes use Doctrine
-  Migrations. Do not instantiate database connections directly — use the
-  centralized `DatabaseConnectionFactory`.
-- **Global settings:** Use `OEGlobalsBag` (extends Symfony `ParameterBag`) instead
-  of `$GLOBALS`. Prefer typed getters over `get()` + cast:
-  - `getString($key)` instead of `(string) get($key)`
-  - `getInt($key)` instead of `(int) get($key)`
-  - `getBoolean($key)` instead of `(bool) get($key)`
-  - `getKernel()` for the Kernel instance
-  - Check the parent class for more: `getAlpha()`, `getAlnum()`, `getDigits()`, `getEnum()`
-
-### Strict Typing
-
-Every new PHP file starts with `declare(strict_types=1)`. Without strict types,
-PHP silently coerces `"123abc"` to `123` when passed to an `int` parameter,
-hiding bugs that surface later as data corruption.
-
-Every property, parameter, and return type should have a native type
-declaration. Reserve PHPDoc types for information native types cannot express
-(generics, array shapes, type narrowing).
-
-### Type System
-
-- **Nullable types:** Use `?Type` for nullable. Use `Type|null` only in unions
-  with three or more members.
-- **Avoid `mixed`:** Enumerate types explicitly. Reserve `mixed` for genuinely
-  polymorphic code and narrow it immediately via type checks.
-- **Enums over constants:** Use enums for any value drawn from a closed set.
-  Prefer unit enums (no backing type) for purely runtime state. Use backed enums
-  only when the value is persisted to a database, serialized to JSON, or
-  exchanged with an external system.
-- **Return types:** Use `void` for side-effect-only methods, `never` for methods
-  that always throw or exit, `self` for factories on `final` classes, `static`
-  for factories on non-final classes.
-
-### Immutability
-
-- Use `readonly` classes or `readonly` properties for value objects, DTOs, and
-  configuration. Mutable state should be the exception.
-- `final` on value objects to prevent mutable subclasses.
-- `DateTimeImmutable` over `DateTime` — always.
-- Wither methods (return a new instance) over setters on value objects.
-
-### Domain Primitives
-
-Wrap primitive values in typed classes when the primitive could be confused with
-another primitive of the same PHP type. This prevents argument transposition
-bugs that are invisible to PHP's type system:
-
-```php
-final readonly class PatientId
-{
-    public function __construct(public int $value)
-    {
-        if ($value <= 0) {
-            throw new \DomainException('Patient ID must be positive');
-        }
-    }
-}
-```
-
-Use for: IDs that could be confused (`PatientId` vs `EncounterId`), strings with
-semantic meaning (`Email`, `Npi`), numbers with constraints or units (`Money`).
-
-### Parse, Don't Validate
-
-At system boundaries (controllers, CLI handlers, message consumers), parse raw
-input into typed objects immediately. After parsing, the rest of the code works
-with types that guarantee their own validity — no re-validation downstream.
-
-### Exhaustive Matching
-
-Use `match` on enums without a `default` branch. PHPStan verifies that every
-case is handled. Adding a `default` silently absorbs new cases and suppresses
-the exhaustiveness check.
-
-### Error Handling and Logging
-
-**PSR-3 logging context:** Never concatenate or interpolate variables into log
-messages. Use PSR-3 context arrays:
-
-```php
-// Bad
-$this->logger->error("Failed for {$phone}: " . $e->getMessage());
-
-// Good
-$this->logger->error('Failed to send message', [
-    'phone' => $phone,
-    'exception' => $e,
-]);
-```
-
-**Catch `\Throwable`, not `\Exception`.** `\Exception` misses `\TypeError`,
-`\ParseError`, and other `\Error` subclasses.
-
-**Let exceptions propagate.** Only catch when the caller can meaningfully
-recover. Do not catch-log-continue — it hides failures from callers.
-
-**Never expose `$e->getMessage()` in user-facing output.** Exception messages
-may contain internal details (SQL, file paths). Log the exception and return a
-generic message to the user.
-
-**Exception chaining:** When wrapping an exception, use a generic message
-describing the failed operation. The original exception is accessible via
-`->getPrevious()` — do not embed its message in the wrapper.
-
-### Dependency Injection
-
-Inject all dependencies through the constructor. Never use `new` for
-service-layer objects inside business logic, never call static service locators,
-and never reach into global state (`$GLOBALS`, `$_SESSION`, `$_GET`, etc.) for
-dependencies.
-
-- **Interface-based dependencies** for cross-boundary code. Use concrete types
-  for internal collaborators where a single-implementation interface adds no
-  value.
-- **PSR-11 containers:** Wire in configuration, not in business logic. Business
-  logic classes should never know the container exists.
-- **Clock injection (PSR-20):** Inject `ClockInterface` instead of calling
-  `new \DateTimeImmutable()` or `time()` directly. This makes time-dependent
-  code deterministically testable.
-- **No direct superglobal access** in application code. Use PSR-7 request
-  objects, framework session abstractions, and container-provided configuration.
-  In legacy code where this is unavoidable, confine superglobal reads to the
-  outermost entry point and parse into typed objects immediately.
-
-### Null Safety
-
-- **Early returns:** Flatten null checks with early returns rather than nesting.
-- **Null coalescing:** `??` for defaults, `??=` for lazy initialization.
-- **Null-safe operator:** `?->` for optional chaining, but no more than two
-  levels deep.
-- **Never suppress nullable warnings.** If PHPStan says a value might be null,
-  handle the null case explicitly. Do not add `@var` casts or `@phpstan-ignore`
-  comments to silence it.
-
-### Static Analysis (PHPStan)
-
-PHPStan runs at level 10 (`max`). Key principles:
-
-- **Fix at the source, not the sink.** When PHPStan reports a type error, trace
-  it back to where the wrong type was introduced. Do not suppress at the point
-  where it manifests.
-- **Narrow, don't cast.** When a value is `mixed` or a union type, narrow with
-  `is_string()`, `instanceof`, etc. — do not cast with `(string)`, `(int)`.
-  Casts silently coerce invalid data.
-- **Avoid inline `@var` casts.** Each one should prompt the question: why does
-  the type not match, and can the source be fixed?
-- **Avoid baselines.** Never add new baseline entries — fix the underlying type
-  error. When modifying a file, fix any existing baseline entries for that file.
-- **Array typing progression** (worst to best): bare `array` → `array<K, V>` →
-  `list<T>` → `non-empty-list<T>` → array shape → `@phpstan-type` alias → DTO.
-  Convert shapes to DTOs when they exceed 3-4 keys or appear in multiple places.
-- **Always run on the full codebase** and filter output for changed files. Never
-  run on a subset — PHPStan's type inference depends on full-codebase context.
-
-### Authorization Modeling
-
-When an operation requires authorization, type the principal — do not pass
-authorization context as strings or bare integers:
-
-```php
-// Bad
-function approveOrder(int $userId, int $orderId): void {}
-
-// Good
-function approveOrder(ClinicalUser $approver, OrderId $orderId): void {}
-```
-
-When an operation is scoped to a facility or tenant, encode that scope in the
-type (e.g., a scoped repository) rather than relying on runtime checks scattered
-through the codebase.
-
-## Commit Messages
-
-Follow [Conventional Commits](https://www.conventionalcommits.org/):
-
-```
-<type>(<scope>): <description>
-```
-
-**Types:** feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
-
-**Examples:**
-- `feat(api): add PATCH support for patient resource`
-- `fix(calendar): correct date parsing for recurring events`
-- `chore(deps): bump monolog/monolog to 3.10.0`
-
-### AI Assistance Trailer
-
-If an AI assistant helped write a commit, add an `Assisted-by` trailer to that
-commit:
-
-```bash
-git commit --trailer "Assisted-by: Claude Code" -m "fix(calendar): correct date parsing"
-```
-
-Use the name of the tool as the trailer value (e.g. `Claude Code`,
-`GitHub Copilot`, `ChatGPT`). When the AI agent creates commits automatically,
-this trailer is typically added for you.
-
-## Service Layer Pattern
-
-New services should extend `BaseService`:
-
-```php
-namespace OpenEMR\Services;
-
-class ExampleService extends BaseService
-{
-    public const TABLE_NAME = "table_name";
-
-    public function __construct()
-    {
-        parent::__construct(self::TABLE_NAME);
-    }
-}
-```
-
-## File Headers
-
-When modifying PHP files, ensure proper docblock:
-
-```php
-/**
- * Brief description
- *
- * @package   OpenEMR
- * @link      https://www.open-emr.org
- * @author    Your Name <your@email.com>
- * @copyright Copyright (c) YEAR Your Name or Organization
- * @license   https://github.com/openemr/openemr/blob/master/LICENSE GNU General Public License 3
- */
-```
-
-Preserve existing authors/copyrights when editing files.
-
-## Common Gotchas
-
-- Multiple template engines: check extension (.twig, .html, .php)
-- Event system uses Symfony EventDispatcher
-- **Bind-mount permissions / HOST_UID:** openemr-cmd auto-exports
-  `HOST_UID`/`HOST_GID` on every `up`/`worktree up`, and the in-container
-  apache user adopts your host uid via the entrypoint. Bind-mounted files
-  apache writes are host-owned, so host-side edits (incl. `git commit`)
-  work regardless of your host uid. Use openemr-cmd consistently —
-  bypassing it skips the export and leaves apache at uid=1000, the
-  usual cause when `EACCES` shows up on bind-mount edits.
-- **Pre-commit hooks:** Install with `openemr-cmd prek-install` (alias `pi`).
-  This writes git hooks that route through the running openemr container, so
-  `git commit` validates against the project's full `.pre-commit-config.yaml`
-  suite (phpstan, rector, phpcs, codespell, actionlint, hadolint, and more)
-  without requiring PHP, Node, Python, codespell, actionlint, or hadolint on
-  the host. Manual passthrough is `openemr-cmd prek run [args...]` (use
-  `--all-files` for a whole-codebase check before pushing). See
-  CONTRIBUTING.md's "Pre-commit hooks for the docker dev environment"
-  section (Advanced Use item 2) for the full workflow.
-  If you maintain a full host PHP/Composer/Python toolchain instead, use
-  `prek install` (or `pre-commit install` if prek is unavailable) for hooks
-  that run directly on the host; `prek run --all-files` is the manual form.
-- Custom PHPStan rules in `tests/PHPStan/Rules/` enforce project conventions
-  (forbidden globals, forbidden direct instantiations, namespace rules, etc.)
-- Commit messages are validated against Conventional Commits format in CI
-
-## Key Documentation
-
-- `CONTRIBUTING.md` - Contributing guidelines
-- `API_README.md` - REST API docs
-- `FHIR_README.md` - FHIR implementation
-- `tests/Tests/README.md` - Testing guide
