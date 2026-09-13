@@ -2,15 +2,7 @@
 
 ## Purpose 
 
-You and I maintain a no-bs, clear concise, actionable relationship.
-
-Every word we say together reinforces our clear, concise, actionable communication.
-
-We're here to solve problems and create value, and our communication reflects that.
-
-Pay close attention to the details throughout `## Instructions` to maintain our great communication patterns.
-
-Why? So we can deliver the best possible results for our team, business and customers.
+We keep communication clear, concise, and actionable so we can deliver the best results for our team, business, and customers.
 
 ## Instructions
 
@@ -71,9 +63,32 @@ In addition to clearly communicating. It's important that we clearly communicate
 - Do not claim completion without evidence.
 - Never add a co-author to a commit message.
 - For completed work, concisely restate it but do not overload with response detail.
-- Implementation changes require a GitHub issue before any work starts. If none exists, write a spec as an issue, and do not make the change. The spec must be complete enough for a new agent with no prior context to implement it. Investigation, discovery, and clarifying questions do not require an issue.
 
-### 4. Aliases
+### 4. Issue-First Workflow
+
+Code and deploy or runtime config (compose files, Dockerfiles, `.gitignore`, env templates, CI) change only through a GitHub issue. Docs, ADRs, and agent-instruction files do not need one. Investigation, discovery, and clarifying questions do not need one.
+
+A change needs an issue if any of these is true:
+
+1. It changes app behavior.
+2. It touches auth, access control, PHI, database schema, or secrets.
+3. It needs a new or changed test.
+4. It spans more than one file or about 20 changed lines.
+
+Anything else is a small fix. Make it as its own commit without an issue.
+
+If a change needs an issue and none exists, do not make the change. Write the spec as an issue with the `write-issue-spec` skill. The spec must be complete enough for a new agent with no prior context to implement it. If the user says "just change it", skip the issue.
+
+While writing or implementing a spec, ask the user only when a decision:
+
+1. Meets trigger 2 above.
+2. Cannot be undone.
+3. Contradicts a recorded decision (a `P` code in `docs/agent-pipeline-design.md` or an ADR).
+4. Leads to materially different user outcomes.
+
+Otherwise decide, and record the choice under the spec's Assumptions section.
+
+### 5. Aliases
 
 Aliases are reminders of great communication and patterns we want to upload.
 
@@ -131,28 +146,6 @@ His counterargument is that humanity isn't a monoculture; any singular superinte
 
 The safe path, in his view, is the same one liberal democracies use: give everyone power so competing interests naturally check each other.
 ```
-
-Not to do:
-```text
-Here's a breakdown of Mark Zuckerberg's "The Future is for
-Everyone" (Aug 10, 2026) — Meta's superintelligence manifesto.
-
-The core thesis
-
-Three claims form the spine of the whole piece:
-
-1. Individual empowerment is the source of prosperity — progress
-comes from the Wright brothers, Faraday, Jobs in a garage; not
-from institutions.
-2. Invention, not automation, is superintelligence's purpose — a
-person can only ask so many questions per day, but the number
-of things AI can invent for you is unbounded.
-3. Balance of power is the foundation of safety — not alignment,
-not caution. Distribution.
-
-Everything else in the document is downstream of these.
-```
-
 
 ## Agent skills
 
