@@ -71,6 +71,7 @@ In addition to clearly communicating. It's important that we clearly communicate
 - Do not claim completion without evidence.
 - Never add a co-author to a commit message.
 - For completed work, concisely restate it but do not overload with response detail.
+- Implementation changes require a GitHub issue before any work starts. If none exists, write a spec as an issue, and do not make the change. The spec must be complete enough for a new agent with no prior context to implement it. Investigation, discovery, and clarifying questions do not require an issue.
 
 ### 4. Aliases
 
@@ -152,10 +153,6 @@ not caution. Distribution.
 Everything else in the document is downstream of these.
 ```
 
-
-# Core Directives & Project Rules
-
-All operational directives, absolute trading rules, workflow guardrails, coding standards, and project conventions are maintained in [.agents/rules/core-directives.md](.agents/rules/core-directives.md). Follow all directives in that document for any engineering, backtesting, or execution work.
 
 ## Agent skills
 
