@@ -1,0 +1,38 @@
+name: agent-retry-paused
+on:
+  schedule:
+    - cron: '7 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  retry:
+    if: github.event_name == 'schedule' || github.actor == github.repository_owner || github.actor == 'bryanjbelanger-openemr-agent[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Mint the GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.AGENT_APP_CLIENT_ID }}
+          private-key: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
+          permission-actions: write
+          permission-issues: write
+      - name: Retry paused issues
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          R: ${{ github.repository }}
+        run: |
+          set -uo pipefail
+          gh issue list --repo "$R" --state open --label agent-paused --label ready-for-agent --limit 100 --json number,labels --jq '.[] | select([.labels[].name] | index("agent-blocked") | not) | .number' |
+          while read -r n; do
+            gh issue edit "$n" --repo "$R" --remove-label agent-paused || { echo "skip #$n: label removal failed"; continue; }
+            if gh workflow run agent-implement.yml --repo "$R" -f issue_number="$n"; then
+              echo "dispatched #$n"
+            else
+              echo "dispatch failed for #$n, restoring label"
+              gh issue edit "$n" --repo "$R" --add-label agent-paused
+            fi
+          done
