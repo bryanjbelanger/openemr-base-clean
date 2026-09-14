@@ -1,0 +1,41 @@
+name: agent-pr-checks
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  fast-checks:
+    runs-on: [self-hosted, macOS, openemr-agent]
+    timeout-minutes: 60
+    concurrency:
+      group: agent-pr-checks-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    steps:
+      - name: Reject pull requests from other repositories
+        env:
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+        run: |
+          if [ "$HEAD_REPO" != "$GITHUB_REPOSITORY" ]; then echo "Pull requests from other repositories are not checked."; exit 1; fi
+      - uses: actions/checkout@v7
+        with:
+          clean: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+      - name: Install JS dependencies
+        run: npm ci
+      - name: PHP syntax
+        run: composer php-syntax-check
+      - name: PHP code style
+        run: composer phpcs
+      - name: PHPStan
+        run: composer phpstan
+      - name: PHP isolated unit tests
+        run: composer phpunit-isolated
+      - name: JS lint
+        run: npm run lint:js
+      - name: JS tests
+        run: npm run test:js
