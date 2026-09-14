@@ -1,6 +1,6 @@
 # Agent Pipeline Design
 
-Decision log for turning GitHub issues into merged code with Claude Code agents running on the owner's Mac. Decisions came from a grilling session on 2026-09-13. Deeper rationale for the four hardest-to-reverse decisions lives in `docs/adr/0004`–`0007`.
+Decision log for turning GitHub issues into merged code with Claude Code agents running on GitHub-hosted runners, with PR checks on the owner's Mac. Decisions came from a grilling session on 2026-09-13 and were revised on 2026-09-14 when agent jobs moved to hosted runners. Deeper rationale for the four hardest-to-reverse decisions lives in `docs/adr/0004`–`0007`.
 
 Decisions use `P` codes so they don't collide with the `D` codes in `docs/production-auth-hardening-plan.md`.
 
@@ -11,8 +11,8 @@ This is a one-person project. Review of this document does not gate the build (P
 1. An agent writes a spec as a GitHub issue with the `write-issue-spec` skill (P5–P8).
 2. A no-context sub-agent reviews the spec until it has no gaps (P6).
 3. The agent applies `ready-for-agent`, unless the spec touches a sensitive area, in which case the owner applies it (P8).
-4. The label event starts a job on one of three self-hosted runners on the Mac (P11–P13). The job exits if the issue has open blockers (P14).
-5. The job runs a Claude Code agent with the implement skill in the runner's own checkout (P15). Hooks check each edit and block finishing until checks pass (P18).
+4. The label event starts a job on a GitHub-hosted `ubuntu-24.04` runner (P11–P13). The job exits if the issue has open blockers (P14).
+5. The job runs a Claude Code agent with the implement skill in a fresh checkout (P15). Hooks check each edit and block finishing until checks pass (P18).
 6. The workflow pushes the agent's single commit to a branch, opens a PR, and enables auto-merge. A pre-push git hook runs the same checks (P18).
 7. A PR check workflow on the Mac runner runs the fast checks. Branch protection requires it, and GitHub auto-merges with a squash (P19, P22, P23).
 8. The merge closes the issue, which starts any labeled issues it was the last blocker for (P14).
@@ -43,14 +43,14 @@ This is a one-person project. Review of this document does not gate the build (P
 
 | # | Decision | Why | Rejected |
 |---|---|---|---|
-| P10 | Agents run on the owner's Mac using Claude Code on the owner's existing subscription. | The subscription is already paid for. API-key billing costs far more. | GitHub-hosted Actions with `anthropics/claude-code-action` and an API key (recommended). Scheduled cloud routines. See ADR-0005. |
-| P11 | Self-hosted GitHub Actions runners on the Mac pick up work from GitHub events. | Event-driven with no polling delay, and the owner does not accept outside pull requests. | A launchd job polling `gh issue list` every 60 seconds (recommended, needs no Actions and no inbound path). A webhook forwarded through a tunnel. See ADR-0006. |
+| P10 | Agents run on GitHub-hosted runners with `anthropics/claude-code-action`, authenticated with the owner's existing subscription through the `CLAUDE_CODE_OAUTH_TOKEN` secret. The agent is pinned to `claude-opus-5` at `--effort high`. Revised by the owner on 2026-09-14 (#8, #34). | The subscription is already paid for. API-key billing costs far more. Hosted runners do not need the Mac to be on. A pinned model and effort cannot change without a commit. | An API key (recommended, rejected on cost). Agents on the owner's Mac (the original P10). Scheduled cloud routines. See ADR-0005. |
+| P11 | GitHub Actions pick up work from GitHub events. Implementation, dependency dispatch, and the hourly `agent-paused` retry run on GitHub-hosted `ubuntu-24.04` runners and use the GitHub App `bryanjbelanger-openemr-agent` for pushes, PRs, labels, and dispatches. The PR check job still runs on self-hosted runners on the Mac (P22). Revised by the owner on 2026-09-14 (#8, #9, #10). | Event-driven with no polling delay. Hosted runners are free for public repos (F9). Pushes, PRs, and dispatches made with `GITHUB_TOKEN` do not start other workflows, so the App token is used. | A launchd job polling `gh issue list` every 60 seconds (recommended, needs no Actions and no inbound path). A webhook forwarded through a tunnel. Self-hosted runners on the Mac for agent jobs (the original P11). See ADR-0006. |
 | P12 | Adding the `ready-for-agent` label starts an agent. | The label is a deliberate gate, so an unreviewed spec does not become a PR. | Starting on issue creation. |
-| P13 | Three runner instances are registered, which caps parallel agents at three. GitHub queues the rest. | The cap comes from subscription usage limits (R3) and Mac CPU and memory, not runner cost. GitHub does the queueing, so no scheduler code is needed. Raise it later if useful. | One runner that starts background agents and caps them itself. |
+| P13 | Parallel agents are not capped by a runner count. Each issue has its own concurrency group, and GitHub's hosted-runner concurrency limit queues the rest. Revised 2026-09-14 (#8). | Subscription usage limits (R3) bound throughput, and P16 pauses and retries when they are hit. GitHub does the queueing, so no scheduler code is needed. | One runner that starts background agents and caps them itself. Three self-hosted runners capping agents at three (the original P13). |
 | P14 | A dependency is finished when its PR merges and the issue closes. A job for an issue with open blockers exits. Closing an issue triggers a workflow that starts labeled issues with no remaining open blockers. Blocking uses GitHub's native issue dependencies. | Building on an unmerged PR builds on code that may change. Automatic dispatch removes manual relabeling. | Dependency done when its PR opens. Owner relabels by hand. |
-| P15 | The `implement-issue` skill implements an issue from its spec in the runner's persistent checkout, runs the checks, and leaves one commit. The `agent-implement` workflow pushes the branch, opens the PR, and enables auto-merge. Revised 2026-09-13 during spec review of #8. | `piv-implement-issue` expects an RCA artifact that specs don't have, and the `piv-*` skills are vendored. Each runner already has its own checkout, so worktrees add nothing. A workflow step for push and PR is deterministic, costs no tokens, and cannot be skipped by the agent. | Modifying `piv-implement-issue`. The skill creating a worktree and opening the PR itself (the original P15). |
+| P15 | The `implement-issue` skill implements an issue from its spec in a fresh checkout on the hosted runner, runs the checks, and leaves one commit. The `agent-implement` workflow pushes the branch, opens the PR, and enables auto-merge. Revised 2026-09-13 during spec review of #8, and on 2026-09-14 for hosted runners. | `piv-implement-issue` expects an RCA artifact that specs don't have, and the `piv-*` skills are vendored. Each job starts from its own checkout of `origin/main`, so worktrees add nothing. A workflow step for push and PR is deterministic, costs no tokens, and cannot be skipped by the agent. | Modifying `piv-implement-issue`. The skill creating a worktree and opening the PR itself (the original P15). |
 | P16 | After 3 blocked attempts to finish, the agent stops, labels the issue `agent-blocked`, and notifies the owner. On a usage limit it labels `agent-paused` and retries after the limit resets. | Caps wasted tokens at a known count. Most check failures are lint or type errors an agent can fix. | Stop on the first failure. |
-| P17 | Notify on PR merged, checks failed, and agent blocked or stopped, to macOS Notification Center and the owner's phone via ntfy.sh. | These events need attention. "Started" and "PR opened" add noise without action. | Notifying on every event. |
+| P17 | Notify on PR merged, checks failed, and agent blocked or stopped, to the owner's phone via ntfy.sh. The topic is the repository secret `NTFY_TOPIC`. Revised by the owner on 2026-09-14 (#11). | These events need attention. "Started" and "PR opened" add noise without action. Hosted runners cannot reach macOS Notification Center, so ntfy is the only channel. | Notifying on every event. macOS Notification Center plus ntfy with the topic in a file on the Mac (the original P17). |
 
 ### Checks and merging
 
@@ -58,7 +58,7 @@ This is a one-person project. Review of this document does not gate the build (P
 |---|---|---|---|
 | P18 | Checks run in four layers. After each edit, a Claude Code hook runs `php -l`, `phpcs`, and `eslint` on only that file, with output capped at 20 lines. On finish, a Claude Code hook runs `phpstan` on changed files plus `phpunit-isolated` and blocks finishing until they pass. Before push, a git hook runs the same script. In CI, the P19 checks run. | The owner wants lint and syntax caught by hooks with minimal tokens, and everything passing before CI. Each layer catches problems where they are cheapest. Hooks only run checks matching the changed file type. Git hooks can be skipped, so CI stays the gate (R4). | Checks in CI only. |
 | P19 | The fast checks with no database gate auto-merge: PHP syntax, `phpstan`, `phpcs`, `phpunit-isolated`, `lint:js`, `test:js`. | Three parallel agents would each need a heavy OpenEMR stack for API and end-to-end suites. | Adding API and end-to-end suites now. Deferred until the pipeline proves itself, possibly against a shared stack on the local Kubernetes cluster. |
-| P20 | PHP 8.5 and Composer run on the Mac. Each runner's persistent checkout keeps its own `vendor/`, installed once and reused. Revised 2026-09-13 during spec review of #8. | The edit hook must finish in about two seconds, and a container start per edit breaks that. PHP 8.5 is within the project's `>=8.2` requirement and is the version upstream CI tests most. Per-runner checkouts replace worktrees (P15), so there is no shared `vendor/` to link. | A throwaway PHP container per check. One `vendor/` shared across worktrees (the original P20). |
+| P20 | The agent job installs PHP 8.5 and Composer dependencies on the hosted runner with `.github/actions/setup-php-composer`, which caches Composer downloads by `composer.lock`. The Mac keeps PHP 8.5 and Composer for the PR check runner and local hooks. Revised 2026-09-13 during spec review of #8, and on 2026-09-14 for hosted runners. | The edit hook must finish in about two seconds, and a container start per edit breaks that, so PHP is installed once per job. PHP 8.5 is within the project's `>=8.2` requirement and is the version upstream CI tests most. | A throwaway PHP container per check. One `vendor/` shared across worktrees (the original P20). A persistent `vendor/` per self-hosted runner (the 2026-09-13 revision). |
 | P21 | Hook configuration is tracked in git in `.claude/settings.json` and `.githooks/`, with `core.hooksPath` set to `.githooks/`. | Agents in worktrees only get hooks that are tracked. These are new files, so upstream files stay untouched. | Per-machine untracked setup. |
 | P22 | A PR check workflow runs the P19 checks on the Mac runner for every PR. Branch protection requires that check, and GitHub auto-merges when it passes. | The owner prefers automation over reviewing every PR. Using required checks means a failed or skipped check cannot merge, and the owner's own PRs get the same checks. | Owner reviews and merges every PR (recommended). The agent job merges its own PR. See ADR-0007. |
 | P23 | Only squash merges are allowed, so each issue lands as one commit on `main` with a meaningful message. | The owner wants bite-size commits with meaningful messages. One commit per issue also pushes specs to stay small. | Several commits per issue with a merge commit. |
@@ -79,8 +79,8 @@ The owner chose differently from the recommendation in these decisions. Each is 
 
 1. **P2** Small fixes are exempt. Recommended: no exemption.
 2. **P4** No issue linking. Recommended: branch name and `Closes #N`.
-3. **P10** Local subscription. Recommended: GitHub-hosted Actions with an API key.
-4. **P11** Self-hosted runners. Recommended: launchd polling.
+3. **P10** Subscription instead of an API key. Recommended: GitHub-hosted Actions with an API key.
+4. **P11** GitHub Actions runners. Recommended: launchd polling.
 5. **P22** Auto-merge. Recommended: owner merges every PR.
 6. **P27** No review gate. Recommended: approve the design before creating issues.
 
@@ -99,12 +99,12 @@ The owner chose differently from the recommendation in these decisions. Each is 
 ## Risks
 
 1. **R1** The repo is public, and the owner not accepting pull requests does not stop anyone from opening one. Agent workflows must trigger only on label events applied by the owner, and outside-contributor workflow runs must require approval. See ADR-0006.
-2. **R2** A runner running as a system service may not reach the Claude Code login stored in the user keychain. Runners must run as a user-level LaunchAgent.
+2. **R2** A runner running as a system service may not reach the Claude Code login stored in the user keychain. Runners must run as a user-level LaunchAgent. Since 2026-09-14 agents run on hosted runners with `CLAUDE_CODE_OAUTH_TOKEN`, so this applies only if agent jobs return to the Mac.
 3. **R3** Three parallel agents consume subscription usage limits faster. P16 handles the limit being reached.
 4. **R4** Git hooks can be skipped with `--no-verify`. The P22 required check is the actual gate.
 5. **R5** `composer install` may report missing PHP extensions on the Mac.
 6. **R6** Under P22 and P27, a change to auth or PHI access can reach `main` with no human review unless P8 routes it to the owner.
-7. **R7** Whether the subscription plan's terms allow unattended headless use on self-hosted runners was not verified during the session. See ADR-0005.
+7. **R7** Whether the subscription plan's terms allow unattended headless use in GitHub Actions through `CLAUDE_CODE_OAUTH_TOKEN` has not been verified. See ADR-0005.
 
 ## Open items for implementation specs
 
