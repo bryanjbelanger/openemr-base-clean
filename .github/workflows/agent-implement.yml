@@ -104,6 +104,7 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           CONCLUSION: ${{ steps.agent.outputs.conclusion }}
           EXECUTION_FILE: ${{ steps.agent.outputs.execution_file }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
           LOG="$RUNNER_TEMP/agent-$N.log"
           : > "$LOG"
@@ -116,6 +117,7 @@ jobs:
           if [ ! -e "$MARKER" ] && [ "$COMMITS" = "0" ] && grep -Eqi 'rate_limit_error|overloaded_error|rate limit|usage limit|limit reached' "$LOG" ${EXECUTION_FILE:+"$EXECUTION_FILE"}; then
             gh issue edit "$N" --repo "$R" --add-label agent-paused
             echo "result=paused" >> "$GITHUB_OUTPUT"
+            if git show origin/main:agent-pipeline/notify.sh > "$RUNNER_TEMP/notify.sh" 2>/dev/null; then bash "$RUNNER_TEMP/notify.sh" "Agent paused" "Issue #$N hit a usage limit" "$GITHUB_SERVER_URL/$R/issues/$N"; fi
             exit 0
           fi
           if [ -e "$MARKER" ] || [ "$CONCLUSION" != "success" ] || [ "$COMMITS" != "1" ]; then
@@ -154,9 +156,11 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
         run: |
           HAS_BLOCKED=$(gh api "repos/$R/issues/$N" --jq '[.labels[].name] | index("agent-blocked") != null')
           if [ "$HAS_BLOCKED" = "false" ]; then
             gh issue edit "$N" --repo "$R" --add-label agent-blocked
             gh issue comment "$N" --repo "$R" --body "Agent job failed or timed out: $GITHUB_SERVER_URL/$R/actions/runs/$GITHUB_RUN_ID"
           fi
+          if git show origin/main:agent-pipeline/notify.sh > "$RUNNER_TEMP/notify.sh" 2>/dev/null; then bash "$RUNNER_TEMP/notify.sh" "Agent blocked" "Issue #$N needs attention" "$GITHUB_SERVER_URL/$R/issues/$N"; fi

@@ -1,0 +1,26 @@
+name: agent-notify-merged
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  notify:
+    if: github.event.pull_request.merged == true && github.event.pull_request.head.repo.full_name == github.repository && startsWith(github.event.pull_request.head.ref, 'agent/issue-')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          sparse-checkout: agent-pipeline
+          persist-credentials: false
+      - name: Notify merged
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          bash agent-pipeline/notify.sh "PR merged" "#$PR_NUMBER: $PR_TITLE" "$PR_URL"
