@@ -81,6 +81,8 @@ jobs:
           prompt: "Use the implement-issue skill to implement GitHub issue #${{ env.N }}."
           claude_args: >-
             --max-turns 200
+            --model claude-opus-5
+            --effort high
             --permission-mode acceptEdits
             --allowedTools "Skill,Read,Edit,Write,Glob,Grep,Bash(git status:*),Bash(git diff:*),Bash(git add:*),Bash(git commit:*),Bash(git log:*),Bash(git show:*),Bash(git rev-parse:*),Bash(git ls-files:*),Bash(gh issue view:*),Bash(composer:*),Bash(npm:*),Bash(npx:*),Bash(php:*),Bash(cat:*),Bash(./vendor/bin/phpstan:*),Bash(./vendor/bin/phpcs:*),Bash(./vendor/bin/phpunit:*),Bash(vendor/bin/phpstan:*),Bash(vendor/bin/phpcs:*),Bash(vendor/bin/phpunit:*),Bash(agent-pipeline/checks/lint-file.sh:*),Bash(agent-pipeline/checks/check-changed.sh:*),Bash(ls:*),Bash(bash -n:*),Bash(ruby -ryaml:*),Bash(jq:*)"
       - name: Mint the GitHub App token
