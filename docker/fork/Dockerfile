@@ -153,26 +153,34 @@ COPY . /openemr
 # Stage 2: Install PHP dependencies (Composer)
 # Separate stage allows Docker to cache this layer independently
 FROM base AS openemr-composer
-COPY --from=openemr-source /openemr /openemr
 WORKDIR /openemr
+# Install from the manifests alone so this layer stays cached until they change
+COPY composer.json composer.lock ./
 # Use Docker buildkit cache mount for Composer cache (requires DOCKER_BUILDKIT=1)
 RUN --mount=type=cache,target=/root/.composer/cache \
-    composer install --no-dev --optimize-autoloader \
-    && composer dump-autoload --optimize --apcu
+    composer install --no-dev --no-autoloader
+COPY --from=openemr-source /openemr /openemr
+RUN composer dump-autoload --optimize --apcu
 
 # Stage 3: Build frontend assets (npm)
 # Separate stage allows Docker to cache npm dependencies independently
 FROM base AS openemr-assets
-COPY --from=openemr-source /openemr /openemr
 WORKDIR /openemr
 RUN apk add --no-cache build-base nodejs npm
+# Install from the manifests (plus the postinstall script) so this layer stays
+# cached until they change
+COPY package.json package-lock.json ./
+COPY scripts/install-assets.js scripts/
 # Use Docker buildkit cache mount for npm cache (requires DOCKER_BUILDKIT=1)
 RUN --mount=type=cache,target=/root/.npm \
-    npm install --unsafe-perm \
-    && npm run build \
-    && cd ccdaservice \
-    && npm install --unsafe-perm \
-    && cd .. \
+    npm install --unsafe-perm
+# ccdaservice installs local packages, so it needs its whole directory
+COPY ccdaservice ccdaservice
+RUN --mount=type=cache,target=/root/.npm \
+    cd ccdaservice \
+    && npm install --unsafe-perm
+COPY --from=openemr-source /openemr /openemr
+RUN npm run build \
     && rm -fr node_modules \
     && apk del --no-cache build-base
 
