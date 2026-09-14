@@ -1,0 +1,159 @@
+name: agent-implement
+on:
+  issues:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        required: true
+        type: string
+permissions:
+  contents: read
+  issues: read
+jobs:
+  implement:
+    if: github.actor == github.repository_owner && (github.event_name == 'workflow_dispatch' || github.event.label.name == 'ready-for-agent')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    concurrency:
+      group: agent-issue-${{ github.event.issue.number || inputs.issue_number }}
+      cancel-in-progress: false
+    env:
+      N: ${{ github.event.issue.number || inputs.issue_number }}
+      R: ${{ github.repository }}
+    steps:
+      - name: Check the issue is ready
+        id: gate
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          reason=$(gh api "repos/$R/issues/$N" --jq '
+            [.labels[].name] as $l
+            | if .pull_request != null then "issue is a pull request"
+              elif .state != "open" then "issue is not open"
+              elif ($l | index("ready-for-agent")) == null then "issue does not have ready-for-agent"
+              elif ($l | index("agent-blocked")) != null then "issue has agent-blocked"
+              elif ($l | index("agent-paused")) != null then "issue has agent-paused"
+              elif (.issue_dependencies_summary.blocked_by // 0) != 0 then "issue has \(.issue_dependencies_summary.blocked_by) open blockers"
+              else "" end')
+          if [ -n "$reason" ]; then
+            echo "Not proceeding: $reason"
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v7
+        if: steps.gate.outputs.proceed == 'true'
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        if: steps.gate.outputs.proceed == 'true'
+        with:
+          node-version: 24
+      - uses: ./.github/actions/setup-php-composer
+        if: steps.gate.outputs.proceed == 'true'
+        with:
+          php-version: '8.5'
+      - name: Prepare the branch and dependencies
+        id: prepare
+        if: steps.gate.outputs.proceed == 'true'
+        shell: bash
+        run: |
+          GIT_DIR=$(git rev-parse --absolute-git-dir)
+          rm -f "$GIT_DIR/agent-blocked" "$GIT_DIR/agent-stop-attempts"
+          git checkout -B "agent/issue-$N" origin/main
+          git config core.hooksPath .githooks
+          npm ci
+      - name: Run the implementation agent
+        id: agent
+        if: steps.gate.outputs.proceed == 'true'
+        uses: anthropics/claude-code-action@v1
+        continue-on-error: true
+        env:
+          AGENT_PIPELINE: '1'
+          GH_TOKEN: ${{ github.token }}
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          prompt: "Use the implement-issue skill to implement GitHub issue #${{ env.N }}."
+          claude_args: >-
+            --max-turns 200
+            --permission-mode acceptEdits
+            --allowedTools "Skill,Read,Edit,Write,Glob,Grep,Bash(git status:*),Bash(git diff:*),Bash(git add:*),Bash(git commit:*),Bash(git log:*),Bash(git show:*),Bash(git rev-parse:*),Bash(git ls-files:*),Bash(gh issue view:*),Bash(composer:*),Bash(npm:*),Bash(npx:*),Bash(php:*),Bash(cat:*),Bash(./vendor/bin/phpstan:*),Bash(./vendor/bin/phpcs:*),Bash(./vendor/bin/phpunit:*),Bash(vendor/bin/phpstan:*),Bash(vendor/bin/phpcs:*),Bash(vendor/bin/phpunit:*),Bash(agent-pipeline/checks/lint-file.sh:*),Bash(agent-pipeline/checks/check-changed.sh:*),Bash(ls:*),Bash(bash -n:*),Bash(ruby -ryaml:*),Bash(jq:*)"
+      - name: Mint the GitHub App token
+        id: app-token
+        if: always() && steps.gate.outputs.proceed == 'true'
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.AGENT_APP_CLIENT_ID }}
+          private-key: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-issues: write
+          permission-pull-requests: write
+          permission-workflows: write
+      - name: Decide the outcome
+        id: outcome
+        if: steps.gate.outputs.proceed == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          CONCLUSION: ${{ steps.agent.outputs.conclusion }}
+          EXECUTION_FILE: ${{ steps.agent.outputs.execution_file }}
+        run: |
+          LOG="$RUNNER_TEMP/agent-$N.log"
+          : > "$LOG"
+          if [ -n "$EXECUTION_FILE" ] && [ -f "$EXECUTION_FILE" ]; then
+            jq -r '.[]? | select(.type == "result") | (.result // .subtype // empty)' "$EXECUTION_FILE" > "$LOG" 2>/dev/null || true
+            [ -s "$LOG" ] || cp "$EXECUTION_FILE" "$LOG"
+          fi
+          COMMITS=$(git rev-list --count origin/main..HEAD)
+          MARKER=$(git rev-parse --absolute-git-dir)/agent-blocked
+          if [ ! -e "$MARKER" ] && [ "$COMMITS" = "0" ] && grep -Eqi 'rate_limit_error|overloaded_error|rate limit|usage limit|limit reached' "$LOG" ${EXECUTION_FILE:+"$EXECUTION_FILE"}; then
+            gh issue edit "$N" --repo "$R" --add-label agent-paused
+            echo "result=paused" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ -e "$MARKER" ] || [ "$CONCLUSION" != "success" ] || [ "$COMMITS" != "1" ]; then
+            if [ -e "$MARKER" ]; then SOURCE="$MARKER"; else SOURCE="$LOG"; fi
+            BODY="$RUNNER_TEMP/agent-$N-blocked.md"
+            {
+              echo "### Agent blocked"
+              echo
+              echo "~~~"
+              tail -n 40 "$SOURCE"
+              echo "~~~"
+            } > "$BODY"
+            gh issue comment "$N" --repo "$R" --body-file "$BODY"
+            gh issue edit "$N" --repo "$R" --add-label agent-blocked
+            echo "result=blocked" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          echo "result=ready" >> "$GITHUB_OUTPUT"
+      - name: Push and open the pull request
+        id: publish
+        if: steps.gate.outputs.proceed == 'true' && steps.outcome.outputs.result == 'ready'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          git -c http.https://github.com/.extraheader= -c credential.helper= \
+            -c 'credential.helper=!f() { echo username=x-access-token; echo "password=$GH_TOKEN"; }; f' \
+            push --force "https://github.com/$R.git" "HEAD:refs/heads/agent/issue-$N"
+          if [ -z "$(gh pr list --repo "$R" --head "agent/issue-$N" --state open --json number --jq '.[].number')" ]; then
+            gh pr create --repo "$R" --base main --head "agent/issue-$N" --title "$(git log -1 --format=%s)" --body "Closes #$N"
+          fi
+          gh pr merge "agent/issue-$N" --repo "$R" --auto --squash
+      - name: Label the issue when the job fails
+        id: on-failure
+        if: steps.gate.outputs.proceed == 'true' && (failure() || cancelled())
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          HAS_BLOCKED=$(gh api "repos/$R/issues/$N" --jq '[.labels[].name] | index("agent-blocked") != null')
+          if [ "$HAS_BLOCKED" = "false" ]; then
+            gh issue edit "$N" --repo "$R" --add-label agent-blocked
+            gh issue comment "$N" --repo "$R" --body "Agent job failed or timed out: $GITHUB_SERVER_URL/$R/actions/runs/$GITHUB_RUN_ID"
+          fi
