@@ -12,7 +12,7 @@ permissions:
   issues: read
 jobs:
   implement:
-    if: github.actor == github.repository_owner && (github.event_name == 'workflow_dispatch' || github.event.label.name == 'ready-for-agent')
+    if: (github.event_name == 'issues' && github.actor == github.repository_owner && github.event.label.name == 'ready-for-agent') || (github.event_name == 'workflow_dispatch' && (github.actor == github.repository_owner || github.actor == 'bryanjbelanger-openemr-agent[bot]'))
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     concurrency:
@@ -77,6 +77,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ github.token }}
+          allowed_bots: bryanjbelanger-openemr-agent
           prompt: "Use the implement-issue skill to implement GitHub issue #${{ env.N }}."
           claude_args: >-
             --max-turns 200

@@ -1,0 +1,39 @@
+name: agent-dispatch-unblocked
+on:
+  issues:
+    types: [closed]
+permissions:
+  contents: read
+  issues: read
+jobs:
+  dispatch:
+    if: github.actor == github.repository_owner || github.actor == 'bryanjbelanger-openemr-agent[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Mint the GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.AGENT_APP_CLIENT_ID }}
+          private-key: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
+          permission-actions: write
+          permission-issues: read
+      - name: Dispatch unblocked dependents
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          CLOSED: ${{ github.event.issue.number }}
+          R: ${{ github.repository }}
+        run: |
+          set -uo pipefail
+          gh api --paginate "repos/$R/issues/$CLOSED/dependencies/blocking" --jq '.[] | select(.state=="open") | .number' |
+          while read -r n; do
+            info=$(gh api "repos/$R/issues/$n" --jq '[(.issue_dependencies_summary.blocked_by // 0), ([.labels[].name] | index("ready-for-agent") != null)] | @tsv') || { echo "skip #$n: lookup failed"; continue; }
+            blocked=$(echo "$info" | cut -f1); labeled=$(echo "$info" | cut -f2)
+            if [ "$blocked" = "0" ] && [ "$labeled" = "true" ]; then
+              gh workflow run agent-implement.yml --repo "$R" -f issue_number="$n" && echo "dispatched #$n" || echo "dispatch failed for #$n"
+            else
+              echo "skip #$n: blocked_by=$blocked ready-for-agent=$labeled"
+            fi
+          done
