@@ -41,3 +41,12 @@ jobs:
         run: npm run lint:js
       - name: JS tests
         run: npm run test:js
+      - name: Notify on failure
+        if: failure() && github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          if [ -f agent-pipeline/notify.sh ]; then bash agent-pipeline/notify.sh "Checks failed" "PR #$PR_NUMBER: $PR_TITLE" "$PR_URL"; fi
